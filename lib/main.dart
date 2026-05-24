@@ -261,8 +261,8 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (pos.x < 20 || pos.x > size.x - 20) return false;
     if (pos.y < 60 || pos.y > size.y - 85) return false;
 
-    // Evita construir em cima do painel da loja
-    if (pos.x > size.x - 120 && pos.y > size.y - 200) return false;
+    // Evita construir em cima do painel da loja (que agora é maior: largura 180, pos.x = size.x - 195)
+    if (pos.x > size.x - 205 && pos.y > size.y - 200) return false;
 
     // 2. Evita construir muito perto da rota (danger zone do path)
     for (int i = 0; i < enemyPath.length - 1; i++) {

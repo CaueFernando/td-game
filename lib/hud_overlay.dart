@@ -100,7 +100,7 @@ class GameHud extends StatelessWidget {
                     Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 18),
                     SizedBox(width: 8),
                     Text(
-                      'Torre Taokey: 100 PX (Arraste da loja no canto inferior direito para construir)',
+                      'Loja: Arraste as torres do canto inferior direito para o mapa para construir',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,

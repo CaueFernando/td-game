@@ -310,10 +310,12 @@ class TorreTaokey extends Tower {
   }
 }
 
+enum TowerType { taokey, eletrica }
+
 // Painel da Loja de Torres
 class TowerShop extends PositionComponent with HasGameReference<CloroquinildoGame> {
   TowerShop() {
-    size = Vector2(95, 120);
+    size = Vector2(180, 120); // Tamanho expandido para acomodar dois cards
     anchor = Anchor.topLeft;
   }
 
@@ -321,14 +323,15 @@ class TowerShop extends PositionComponent with HasGameReference<CloroquinildoGam
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
     // Posiciona no canto inferior direito, deixando margem para não interferir com barras do sistema
-    position = Vector2(size.x - 110, size.y - 190);
+    position = Vector2(size.x - 195, size.y - 190);
   }
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
-    // Adiciona o card da única torre atualmente disponível
-    add(TowerShopItem(position: Vector2(10, 30)));
+    // Adiciona os cards lado a lado
+    add(TowerShopItem(type: TowerType.taokey, position: Vector2(10, 30)));
+    add(TowerShopItem(type: TowerType.eletrica, position: Vector2(95, 30)));
   }
 
   @override
@@ -365,15 +368,20 @@ class TowerShop extends PositionComponent with HasGameReference<CloroquinildoGam
   }
 }
 
-// Item arrastável da loja para construir a Torre Taokey
+// Item arrastável da loja para construir torres
 class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReference<CloroquinildoGame> {
+  final TowerType type;
   TowerDragPreview? _preview;
 
-  TowerShopItem({required Vector2 position}) {
+  TowerShopItem({required this.type, required Vector2 position}) {
     this.position = position;
     size = Vector2(75, 80);
     anchor = Anchor.topLeft;
   }
+
+  double get range => (type == TowerType.taokey) ? 130.0 : 110.0;
+  int get cost => (type == TowerType.taokey) ? 100 : 150;
+  String get name => (type == TowerType.taokey) ? 'Taokey' : 'Tesla';
 
   @override
   void onDragStart(DragStartEvent event) {
@@ -381,7 +389,8 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
     // Cria o preview de arrasto na posição atual do ponteiro
     _preview = TowerDragPreview(
       position: event.canvasPosition,
-      range: 130.0, // Alcance padrão da Torre Taokey
+      range: range,
+      type: type,
     );
     game.add(_preview!);
   }
@@ -406,9 +415,10 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       _preview = null;
 
       if (isValid) {
-        const cost = 100;
         if (game.gameState.buy(cost)) {
-          final tower = TorreTaokey(position: buildPos);
+          final tower = (type == TowerType.taokey)
+              ? TorreTaokey(position: buildPos)
+              : TorreEletrica(position: buildPos);
           game.add(tower);
           game.showFloatingText('+Torre!', buildPos, Colors.greenAccent);
         } else {
@@ -439,7 +449,7 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       ..color = Colors.black.withOpacity(0.6)
       ..style = PaintingStyle.fill;
     final borderPaint = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.4)
+      ..color = (type == TowerType.taokey ? Colors.cyanAccent : Colors.blueAccent).withOpacity(0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -450,24 +460,36 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
     canvas.save();
     canvas.translate(size.x / 2, size.y / 2 - 10);
     
-    // Cano mini
-    final barrelPaint = Paint()..color = Colors.grey.shade600;
-    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-3, -4, 15, 8), const Radius.circular(2)), barrelPaint);
-    
-    // Corpo mini
-    final bodyPaint = Paint()..color = Colors.grey.shade800;
-    canvas.drawCircle(Offset.zero, 8, bodyPaint);
-    
-    // Core mini
-    final corePaint = Paint()..color = Colors.greenAccent;
-    canvas.drawCircle(Offset.zero, 5, corePaint);
+    if (type == TowerType.taokey) {
+      // Cano mini
+      final barrelPaint = Paint()..color = Colors.grey.shade600;
+      canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-3, -4, 15, 8), const Radius.circular(2)), barrelPaint);
+      
+      // Corpo mini
+      final bodyPaint = Paint()..color = Colors.grey.shade800;
+      canvas.drawCircle(Offset.zero, 8, bodyPaint);
+      
+      // Core mini
+      final corePaint = Paint()..color = Colors.greenAccent;
+      canvas.drawCircle(Offset.zero, 5, corePaint);
+    } else {
+      // Bobina mini (Tesla)
+      final rodPaint = Paint()..color = Colors.grey.shade600;
+      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, 4), width: 3, height: 12), const Radius.circular(1)), rodPaint);
+      
+      final ringPaint = Paint()..color = Colors.cyan.shade600;
+      canvas.drawCircle(const Offset(0, -4), 4, ringPaint);
+      
+      final corePaint = Paint()..color = Colors.white;
+      canvas.drawCircle(const Offset(0, -4), 2.5, corePaint);
+    }
     canvas.restore();
 
     // 3. Nome
     final namePainter = TextPainter(
-      text: const TextSpan(
-        text: 'Taokey',
-        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+      text: TextSpan(
+        text: name,
+        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -475,9 +497,13 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
 
     // 4. Custo
     final pricePainter = TextPainter(
-      text: const TextSpan(
-        text: '100 PX',
-        style: TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold),
+      text: TextSpan(
+        text: '$cost PX',
+        style: TextStyle(
+          color: (type == TowerType.taokey) ? Colors.amberAccent : Colors.cyanAccent,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -488,11 +514,13 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
 // Preview semi-transparente durante o arrasto com feedback de área válida (verde/vermelho)
 class TowerDragPreview extends PositionComponent {
   final double range;
+  final TowerType type;
   bool isValid = true;
 
   TowerDragPreview({
     required Vector2 position,
     required this.range,
+    required this.type,
   }) {
     this.position = position.clone();
     size = Vector2(40, 40);
@@ -532,14 +560,263 @@ class TowerDragPreview extends PositionComponent {
     canvas.drawRRect(RRect.fromRectAndRadius(baseRect, const Radius.circular(8)), basePaint);
     canvas.drawRRect(RRect.fromRectAndRadius(baseRect, const Radius.circular(8)), baseBorderPaint);
 
-    final barrelPaint = Paint()..color = color.withOpacity(0.4);
-    final barrelRect = Rect.fromLTWH(-4, -6, 22, 12);
-    canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), barrelPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), baseBorderPaint);
+    if (type == TowerType.taokey) {
+      final barrelPaint = Paint()..color = color.withOpacity(0.4);
+      final barrelRect = Rect.fromLTWH(-4, -6, 22, 12);
+      canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), barrelPaint);
+      canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), baseBorderPaint);
 
-    canvas.drawCircle(Offset.zero, 8, basePaint);
-    canvas.drawCircle(Offset.zero, 8, baseBorderPaint);
+      canvas.drawCircle(Offset.zero, 8, basePaint);
+      canvas.drawCircle(Offset.zero, 8, baseBorderPaint);
+    } else {
+      final rodRect = Rect.fromCenter(center: const Offset(0, 4), width: 6, height: 20);
+      canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(2)), basePaint);
+      canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(2)), baseBorderPaint);
+
+      canvas.drawCircle(const Offset(0, -8), 8, basePaint);
+      canvas.drawCircle(const Offset(0, -8), 8, baseBorderPaint);
+    }
 
     canvas.restore();
+  }
+}
+
+// Torre Elétrica (Tesla Coil) - Dano instantâneo em cadeia
+class TorreEletrica extends Tower {
+  TorreEletrica({required Vector2 position})
+      : super(
+          position: position,
+          range: 110.0,
+          damage: 6.0,
+          fireRate: 1.2,
+          cost: 150,
+        );
+
+  @override
+  void shoot(Enemy target) {
+    final bounceRange = 90.0;
+    final maxBounces = 3;
+    final targets = <Enemy>[];
+    final visited = <Enemy>{};
+
+    Enemy? current = target;
+    while (current != null && targets.length < maxBounces) {
+      targets.add(current);
+      visited.add(current);
+      current = _findNearestEnemy(current.position, visited, bounceRange);
+    }
+
+    // Aplica o dano instantâneo com decaimento
+    double currentDamage = damage;
+    final points = [position.clone() + Vector2(0, -10)]; // Começa na bobina (offset para cima)
+    
+    for (final enemy in targets) {
+      enemy.takeDamage(currentDamage);
+      points.add(enemy.position.clone());
+      currentDamage *= 0.8; // Decai 20% a cada ricochete
+    }
+
+    // Cria o efeito de raio no mundo
+    game.add(LightningEffect(points: points));
+  }
+
+  Enemy? _findNearestEnemy(Vector2 from, Set<Enemy> exclude, double maxDistance) {
+    final enemies = game.children.whereType<Enemy>();
+    Enemy? nearest;
+    double minDistance = double.infinity;
+
+    for (final enemy in enemies) {
+      if (exclude.contains(enemy)) continue;
+      final distance = (enemy.position - from).length;
+      if (distance <= maxDistance && distance < minDistance) {
+        minDistance = distance;
+        nearest = enemy;
+      }
+    }
+    return nearest;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    // 1. DESENHAR BASE FIXA (Não rotaciona com a mira da torre)
+    canvas.save();
+    canvas.translate(size.x / 2, size.y / 2);
+    canvas.save();
+    canvas.rotate(-angle); // Desfaz a rotação da mira para desenhar a base estática
+    
+    final baseRect = Rect.fromCenter(center: Offset.zero, width: size.x * 1.1, height: size.y * 1.1);
+    
+    final baseGradient = LinearGradient(
+      colors: [Colors.grey.shade900, Colors.grey.shade800, Colors.grey.shade700],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    final basePaint = Paint()
+      ..shader = baseGradient.createShader(baseRect)
+      ..style = PaintingStyle.fill;
+    
+    final borderPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(baseRect, const Radius.circular(8)),
+      basePaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(baseRect, const Radius.circular(8)),
+      borderPaint,
+    );
+
+    // Detalhes em ciano brilhante nos cantos (luzes de status da base)
+    final cornerLightPaint = Paint()
+      ..color = Colors.cyanAccent
+      ..style = PaintingStyle.fill;
+    
+    final halfW = size.x * 1.1 / 2;
+    final halfH = size.y * 1.1 / 2;
+    canvas.drawCircle(Offset(-halfW + 4, -halfH + 4), 2.5, cornerLightPaint);
+    canvas.drawCircle(Offset(halfW - 4, -halfH + 4), 2.5, cornerLightPaint);
+    canvas.drawCircle(Offset(-halfW + 4, halfH - 4), 2.5, cornerLightPaint);
+    canvas.drawCircle(Offset(halfW - 4, halfH - 4), 2.5, cornerLightPaint);
+
+    canvas.restore(); // Restaura da rotação
+
+    // 2. DESENHAR A BOBINA TESLA (Emissora em todas as direções)
+    // Haste vertical
+    final rodPaint = Paint()
+      ..color = Colors.grey.shade800
+      ..style = PaintingStyle.fill;
+    final rodRect = Rect.fromCenter(center: const Offset(0, 4), width: 8, height: 24);
+    canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(2)), rodPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(2)), borderPaint);
+
+    // Anéis da bobina
+    final coilPaint = Paint()
+      ..color = Colors.cyan.shade700
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, 8), width: 14, height: 4), const Radius.circular(1)), coilPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, 8), width: 14, height: 4), const Radius.circular(1)), borderPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, 0), width: 12, height: 4), const Radius.circular(1)), coilPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, 0), width: 12, height: 4), const Radius.circular(1)), borderPaint);
+
+    // Esfera emissora de plasma no topo
+    final spherePaint = Paint()
+      ..color = Colors.grey.shade900
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(const Offset(0, -10), 10, spherePaint);
+    canvas.drawCircle(const Offset(0, -10), 10, borderPaint);
+
+    // Núcleo de plasma ciano brilhante
+    final plasmaGradient = RadialGradient(
+      colors: [Colors.white, Colors.cyanAccent, Colors.cyan.shade900],
+      stops: const [0.1, 0.6, 1.0],
+    );
+    final plasmaPaint = Paint()
+      ..shader = plasmaGradient.createShader(Rect.fromCircle(center: const Offset(0, -10), radius: 7))
+      ..style = PaintingStyle.fill;
+
+    final plasmaGlowPaint = Paint()
+      ..color = Colors.cyanAccent.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    canvas.drawCircle(const Offset(0, -10), 7, plasmaGlowPaint);
+    canvas.drawCircle(const Offset(0, -10), 7, plasmaPaint);
+
+    canvas.restore(); // Restaura a centralização
+  }
+}
+
+// Efeito visual de raio zig-zag
+class LightningEffect extends PositionComponent {
+  final List<Vector2> points;
+  double lifespan = 0.15;
+  final double maxLifespan = 0.15;
+
+  LightningEffect({required this.points}) {
+    // Definimos tamanho gigante por simplicidade para poder desenhar livremente
+    size = Vector2(2000, 2000);
+    anchor = Anchor.center;
+    if (points.isNotEmpty) {
+      position = points.first;
+    }
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    lifespan -= dt;
+    if (lifespan <= 0) {
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    if (points.length < 2) return;
+
+    final progress = (lifespan / maxLifespan).clamp(0.0, 1.0);
+    final opacity = progress;
+
+    final glowPaint = Paint()
+      ..color = Colors.cyanAccent.withValues(alpha: opacity * 0.6)
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+    final boltPaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final random = Random();
+    final offsetStart = Offset(points.first.x, points.first.y);
+
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = Offset(points[i].x, points[i].y) - offsetStart;
+      final p2 = Offset(points[i + 1].x, points[i + 1].y) - offsetStart;
+
+      final segments = _generateZigZag(p1, p2, random);
+
+      final path = Path();
+      if (segments.isNotEmpty) {
+        path.moveTo(segments.first.dx, segments.first.dy);
+        for (int j = 1; j < segments.length; j++) {
+          path.lineTo(segments[j].dx, segments[j].dy);
+        }
+      }
+
+      canvas.drawPath(path, glowPaint);
+      canvas.drawPath(path, boltPaint);
+    }
+  }
+
+  List<Offset> _generateZigZag(Offset from, Offset to, Random random) {
+    final delta = to - from;
+    final distance = delta.distance;
+    if (distance < 10) return [from, to];
+
+    final segmentsCount = (distance / 12).ceil();
+    final points = [from];
+
+    final dir = delta / distance;
+    final perp = Offset(-dir.dy, dir.dx); // Vetor perpendicular
+
+    for (int i = 1; i < segmentsCount; i++) {
+      final fraction = i / segmentsCount;
+      final basePoint = from + delta * fraction;
+      // Adiciona ruído perpendicular à direção do segmento
+      final offsetScale = (random.nextDouble() - 0.5) * 10.0;
+      points.add(basePoint + perp * offsetScale);
+    }
+    points.add(to);
+    return points;
   }
 }
