@@ -7,7 +7,7 @@ import 'package:flame/events.dart';
 import 'path_config.dart';
 import 'game_state.dart';
 import 'enemy.dart';
-import 'tower.dart';
+import 'towers/towers.dart';
 
 import 'screens/presentation_screen.dart';
 import 'screens/login_screen.dart';
@@ -261,8 +261,8 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (pos.x < 20 || pos.x > size.x - 20) return false;
     if (pos.y < 60 || pos.y > size.y - 85) return false;
 
-    // Evita construir em cima do painel da loja (que agora é maior: largura 180, pos.x = size.x - 195)
-    if (pos.x > size.x - 205 && pos.y > size.y - 200) return false;
+    // Evita construir em cima do painel da loja (que agora tem largura 350, pos.x = size.x - 365)
+    if (pos.x > size.x - 375 && pos.y > size.y - 200) return false;
 
     // 2. Evita construir muito perto da rota (danger zone do path)
     for (int i = 0; i < enemyPath.length - 1; i++) {

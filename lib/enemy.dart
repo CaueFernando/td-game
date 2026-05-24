@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
+import 'towers/towers.dart';
 import 'main.dart';
 
 class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
@@ -14,6 +15,29 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
 
   double flashTimer = 0.0;
   bool get isFlashing => flashTimer > 0.0;
+
+  // Active status effects (buffs/debuffs)
+  final List<StatusEffect> activeEffects = [];
+
+  void applyEffect(StatusEffect effect) {
+    for (final active in activeEffects) {
+      if (active.type == effect.type) {
+        active.refresh(effect);
+        return;
+      }
+    }
+    activeEffects.add(effect);
+  }
+
+  double get currentSpeed {
+    double speedMod = speed;
+    for (final effect in activeEffects) {
+      if (effect is ChillEffect) {
+        speedMod *= effect.speedReductionMultiplier;
+      }
+    }
+    return speedMod;
+  }
 
   Enemy({
     required this.hp,
@@ -33,7 +57,15 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
 
   void takeDamage(double amount) {
     if (hp <= 0) return;
-    hp -= amount;
+
+    double damageToApply = amount;
+    for (final effect in activeEffects) {
+      if (effect is ShockEffect) {
+        damageToApply *= effect.damageMultiplier;
+      }
+    }
+
+    hp -= damageToApply;
     flashTimer = 0.1; // Flash branco por 100ms
     if (hp <= 0) {
       die();
@@ -54,6 +86,16 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
       flashTimer -= dt;
     }
 
+    // Atualiza os efeitos de status ativos
+    final expiredEffects = <StatusEffect>[];
+    for (final effect in activeEffects) {
+      final keep = effect.update(this, dt);
+      if (!keep) {
+        expiredEffects.add(effect);
+      }
+    }
+    activeEffects.removeWhere((e) => expiredEffects.contains(e));
+
     if (currentPathIndex >= path.length) {
       // Chegou ao fim do caminho (Cercadinho)
       game.gameState.takeBaseDamage(damageToBase);
@@ -67,7 +109,7 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
     final toTarget = target - position;
     final distance = toTarget.length;
 
-    final step = speed * dt;
+    final step = currentSpeed * dt;
     if (distance <= step) {
       position = target.clone();
       currentPathIndex++;
@@ -102,6 +144,22 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
       Rect.fromLTWH(0, -10, hpBarWidth * hpPercent, hpBarHeight),
       Paint()..color = hpColor,
     );
+
+    // Desenha ícones de debuff acima da barra de vida
+    if (activeEffects.isNotEmpty) {
+      final iconSize = 10.0;
+      final spacing = 2.0;
+      
+      // Centraliza a fileira de ícones sobre o inimigo
+      final totalWidth = activeEffects.length * iconSize + (activeEffects.length - 1) * spacing;
+      double startX = (size.x - totalWidth) / 2;
+      double startY = -22.0;
+
+      for (final effect in activeEffects) {
+        effect.renderIcon(canvas, Offset(startX, startY), iconSize);
+        startX += iconSize + spacing;
+      }
+    }
   }
 }
 

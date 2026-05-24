@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'tower.dart';
-import 'main.dart';
+import '../main.dart';
 
 enum UpgradeType { damage, range, speed }
 
