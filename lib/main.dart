@@ -8,7 +8,6 @@ import 'path_config.dart';
 import 'game_state.dart';
 import 'enemy.dart';
 import 'tower.dart';
-import 'tower_slot.dart';
 
 import 'screens/presentation_screen.dart';
 import 'screens/login_screen.dart';
@@ -16,9 +15,12 @@ import 'screens/level_select_screen.dart';
 import 'screens/game_play_screen.dart';
 
 // Classe principal do Motor do Jogo
-class CloroquinildoGame extends FlameGame with TapCallbacks {
+class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
+  final int level;
   final GameState gameState = GameState();
   late List<Vector2> enemyPath;
+
+  CloroquinildoGame({this.level = 1});
 
   // Lógica de spawning de ondas
   int enemiesToSpawn = 0;
@@ -27,36 +29,24 @@ class CloroquinildoGame extends FlameGame with TapCallbacks {
   double spawnInterval = 0.8;
   double enemyHpMultiplier = 1.0;
   double enemySpeedMultiplier = 1.0;
-
-  // Lista de posições dos slots de construção
-  final List<Vector2> slotPositions = [
-    Vector2(100, 230),
-    Vector2(200, 70),
-    Vector2(280, 370),
-    Vector2(380, 520),
-    Vector2(470, 370),
-    Vector2(630, 170),
-  ];
+  double waveTimerValue = 30.0;
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
 
+    // Configura o número máximo de waves de acordo com a fase
+    gameState.maxWaves = (level == 2) ? 7 : 5;
+
     // Obtém o caminho dos inimigos
-    enemyPath = PathConfig.getPoints(size);
+    enemyPath = PathConfig.getPoints(level, size);
 
     // Registra ouvintes para mudanças de estado cruciais
     gameState.isGameOver.addListener(_onGameOverChanged);
     gameState.isVictory.addListener(_onVictoryChanged);
 
-    // Inicializa o mapa com os slots de torres
-    _initSlots();
-  }
-
-  void _initSlots() {
-    for (final pos in slotPositions) {
-      add(TowerSlot(position: pos));
-    }
+    // Inicializa o painel da Loja de Torres
+    add(TowerShop());
   }
 
   // Helper para spawnar texto flutuante de feedback
@@ -69,6 +59,8 @@ class CloroquinildoGame extends FlameGame with TapCallbacks {
     if (gameState.waveInProgress.value) return;
 
     gameState.startNextWave();
+    waveTimerValue = 30.0;
+    gameState.waveTimer.value = 30.0;
     
     final currentWave = gameState.wave.value;
     // Dificuldade progressiva: 10% a mais de HP por wave
@@ -97,6 +89,19 @@ class CloroquinildoGame extends FlameGame with TapCallbacks {
         activeEnemiesCount++;
         spawnTimer = spawnInterval;
       }
+    }
+
+    // Gerenciador de auto-start da wave (a cada 30 segundos)
+    if (!gameState.waveInProgress.value && gameState.wave.value < gameState.maxWaves && !gameState.isGameOver.value && !gameState.isVictory.value) {
+      waveTimerValue -= dt;
+      if (waveTimerValue <= 0) {
+        startNextWave();
+      } else {
+        gameState.waveTimer.value = waveTimerValue;
+      }
+    } else {
+      waveTimerValue = 30.0;
+      gameState.waveTimer.value = 30.0;
     }
   }
 
@@ -132,24 +137,29 @@ class CloroquinildoGame extends FlameGame with TapCallbacks {
     // Remove inimigos, projéteis e torres
     children.whereType<Enemy>().forEach((e) => e.removeFromParent());
     children.whereType<Tower>().forEach((t) => t.removeFromParent());
-    children.whereType<TowerSlot>().forEach((s) => s.removeFromParent());
     children.whereType<FloatingText>().forEach((f) => f.removeFromParent());
 
     // Reseta estado
     gameState.reset();
     activeEnemiesCount = 0;
     enemiesToSpawn = 0;
+    waveTimerValue = 30.0;
+    gameState.waveTimer.value = 30.0;
 
     // Remove Overlays de fim de jogo
     overlays.remove('GameOver');
     overlays.remove('Victory');
-
-    // Recria os slots
-    _initSlots();
   }
 
   @override
   void render(Canvas canvas) {
+    final scaleFactor = zoomFactor;
+    final centerOffset = (size - size * scaleFactor) / 2;
+
+    canvas.save();
+    canvas.translate(centerOffset.x, centerOffset.y);
+    canvas.scale(scaleFactor);
+
     // Desenha o fundo tecnológico escuro do Bananil
     canvas.drawColor(const Color(0xFF0F172A), BlendMode.src);
 
@@ -230,6 +240,77 @@ class CloroquinildoGame extends FlameGame with TapCallbacks {
     textPainter.paint(canvas, Offset(lastPoint.x - textPainter.width / 2, lastPoint.y - textPainter.height / 2));
 
     super.render(canvas);
+
+    canvas.restore();
+  }
+
+  // Fecha menus de upgrade abertos ao clicar no chão
+  @override
+  void onTapDown(TapDownEvent event) {
+    super.onTapDown(event);
+    if (event.handled) return;
+
+    for (final tower in children.whereType<Tower>()) {
+      tower.showRange = false;
+    }
+  }
+
+  // Valida se o local tocado é apropriado para construir uma torre
+  bool isValidTowerPosition(Vector2 pos) {
+    // 1. Limites da tela para não sobrepor o HUD
+    if (pos.x < 20 || pos.x > size.x - 20) return false;
+    if (pos.y < 60 || pos.y > size.y - 85) return false;
+
+    // Evita construir em cima do painel da loja
+    if (pos.x > size.x - 120 && pos.y > size.y - 200) return false;
+
+    // 2. Evita construir muito perto da rota (danger zone do path)
+    for (int i = 0; i < enemyPath.length - 1; i++) {
+      final a = enemyPath[i];
+      final b = enemyPath[i + 1];
+      if (_distanceToSegment(pos, a, b) < 35.0) {
+        return false;
+      }
+    }
+
+    // 3. Evita construir muito perto do Cercadinho
+    if (enemyPath.isNotEmpty) {
+      final lastPoint = enemyPath.last;
+      if ((pos - lastPoint).length < 44.0) {
+        return false;
+      }
+    }
+
+    // 4. Evita construir em cima de outras torres (colisão de 40px)
+    final existingTowers = children.whereType<Tower>();
+    for (final tower in existingTowers) {
+      if ((pos - tower.position).length < 40.0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  double _distanceToSegment(Vector2 p, Vector2 a, Vector2 b) {
+    final ab = b - a;
+    final ap = p - a;
+    final abLenSq = ab.length2;
+    if (abLenSq == 0.0) return (p - a).length;
+    
+    final t = (ap.dot(ab) / abLenSq).clamp(0.0, 1.0);
+    final closestPoint = a + ab * t;
+    return (p - closestPoint).length;
+  }
+
+  double get zoomFactor => (level == 2) ? 0.82 : 0.90;
+
+  @override
+  Vector2 convertGlobalToLocalCoordinate(Vector2 point) {
+    final localPoint = super.convertGlobalToLocalCoordinate(point);
+    final scaleFactor = zoomFactor;
+    final centerOffset = (canvasSize - canvasSize * scaleFactor) / 2;
+    return (localPoint - centerOffset) / scaleFactor;
   }
 
   @override

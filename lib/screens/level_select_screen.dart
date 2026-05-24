@@ -236,7 +236,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                 childAspectRatio: 0.85,
                 children: [
                   _buildLevelNode(1, stars: 3, isUnlocked: true),
-                  _buildLevelNode(2, stars: 3, isUnlocked: false),
+                  _buildLevelNode(2, stars: 0, isUnlocked: true),
                   _buildLevelNode(3, stars: 3, isUnlocked: false),
                   _buildLevelNode(4, stars: 2, isUnlocked: false),
                   _buildLevelNode(5, stars: 1, isUnlocked: false),
@@ -254,13 +254,13 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
   }
 
   Widget _buildLevelNode(int num, {required int stars, required bool isUnlocked}) {
-    // Para simplificar, o Level 1 é o único jogável que abre a partida
-    final playable = num == 1;
+    // Níveis 1 e 2 estão disponíveis e abrem a partida
+    final playable = num == 1 || num == 2;
 
     return InkWell(
       onTap: playable
           ? () {
-              Navigator.pushNamed(context, '/game_play');
+              Navigator.pushNamed(context, '/game_play', arguments: num);
             }
           : () {
               ScaffoldMessenger.of(context).showSnackBar(

@@ -81,93 +81,110 @@ class GameHud extends StatelessWidget {
             ),
           ),
 
-          // Painel Inferior (Botão de Start Wave e Info de Compra)
+          // Painel Inferior (Info de Compra centralizado)
           Positioned(
-            bottom: 0,
+            bottom: 8,
             left: 0,
             right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Info do Custo da Torre
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blueAccent.withOpacity(0.4)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Torre Taokey: 100 PX (Clique nos slots + para construir)',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.blueAccent.withOpacity(0.4)),
                 ),
-                const SizedBox(height: 12),
-                
-                // Botão de Próxima Wave
-                ValueListenableBuilder2<bool, int>(
-                  first: state.waveInProgress,
-                  second: state.wave,
-                  builder: (context, inProgress, waveVal, _) {
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Torre Taokey: 100 PX (Arraste da loja no canto inferior direito para construir)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Botão Play e Temporizador no canto inferior esquerdo
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: state.waveInProgress,
+              builder: (context, inProgress, _) {
+                return ValueListenableBuilder<int>(
+                  valueListenable: state.wave,
+                  builder: (context, waveVal, _) {
                     final isLastWave = waveVal >= state.maxWaves;
-                    final buttonText = isLastWave ? 'Última Wave!' : 'Soltar Goblins! (Wave ${waveVal + 1})';
                     final canStart = !inProgress && !isLastWave;
 
-                    return AnimatedOpacity(
-                      duration: const Duration(milliseconds: 300),
-                      opacity: canStart ? 1.0 : 0.5,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Colors.greenAccent, Colors.teal],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.greenAccent.withOpacity(0.4),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
+                    if (isLastWave && !inProgress) {
+                      return const SizedBox.shrink(); // Oculta se o jogo terminou
+                    }
+
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
                           onPressed: canStart ? () => game.startNextWave() : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                            shape: const CircleBorder(),
+                            padding: const EdgeInsets.all(12),
+                            backgroundColor: canStart ? Colors.greenAccent : Colors.grey.shade800,
+                            foregroundColor: Colors.black,
+                            shadowColor: Colors.greenAccent.withOpacity(0.4),
+                            elevation: canStart ? 8 : 0,
                           ),
-                          child: Text(
-                            inProgress ? 'Wave em Andamento...' : buttonText,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
-                            ),
+                          child: Icon(
+                            inProgress ? Icons.hourglass_empty_rounded : Icons.play_arrow_rounded,
+                            size: 24,
+                            color: canStart ? Colors.black : Colors.white38,
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        if (!inProgress && !isLastWave)
+                          ValueListenableBuilder<double>(
+                            valueListenable: state.waveTimer,
+                            builder: (context, timerVal, _) {
+                              final seconds = timerVal.ceil();
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.timer_outlined, size: 14, color: Colors.amberAccent),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${seconds}s',
+                                      style: const TextStyle(
+                                        color: Colors.amberAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                      ],
                     );
                   },
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],

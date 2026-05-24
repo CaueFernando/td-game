@@ -7,8 +7,9 @@ class GameState {
   final ValueNotifier<bool> waveInProgress = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isGameOver = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isVictory = ValueNotifier<bool>(false);
+  final ValueNotifier<double> waveTimer = ValueNotifier<double>(30.0);
 
-  final int maxWaves = 5;
+  int maxWaves = 5;
   final int maxCercadinhoHp = 20;
 
   void reset() {
@@ -18,6 +19,7 @@ class GameState {
     waveInProgress.value = false;
     isGameOver.value = false;
     isVictory.value = false;
+    waveTimer.value = 30.0;
   }
 
   void addPixcoins(int amount) {

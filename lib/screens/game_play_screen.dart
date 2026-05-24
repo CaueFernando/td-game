@@ -12,11 +12,17 @@ class GamePlayScreen extends StatefulWidget {
 
 class _GamePlayScreenState extends State<GamePlayScreen> {
   late CloroquinildoGame _game;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _game = CloroquinildoGame();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final level = (args is int) ? args : 1;
+      _game = CloroquinildoGame(level: level);
+      _initialized = true;
+    }
   }
 
   @override
