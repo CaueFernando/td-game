@@ -6,3 +6,5 @@ export 'upgrade_button.dart';
 export 'stone_tower.dart';
 export 'ice_tower.dart';
 export 'status_effect.dart';
+export 'fire_tower.dart';
+

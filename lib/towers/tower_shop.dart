@@ -6,22 +6,32 @@ import 'base_tower.dart';
 import 'arc_tower.dart';
 import 'stone_tower.dart';
 import 'ice_tower.dart';
+import 'fire_tower.dart';
 import '../main.dart';
 
-enum TowerType { taokey, eletrica, pedra, gelo }
+enum TowerType { taokey, eletrica, pedra, gelo, fogo }
 
 // Painel da Loja de Torres
 class TowerShop extends PositionComponent with HasGameReference<CloroquinildoGame> {
   TowerShop() {
-    size = Vector2(350, 120); // Expandido para 350 para caber quatro cards
+    size = Vector2(435, 120); // Expandido de 350 para 435 para caber cinco cards
     anchor = Anchor.topLeft;
   }
 
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-    // Posiciona no canto inferior direito, deixando margem para não interferir com barras do sistema
-    position = Vector2(size.x - 365, size.y - 190);
+    position = Vector2(size.x - 450, size.y - 190);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    final scaleFactor = game.zoomFactor;
+    final centerOffset = (game.size - game.size * scaleFactor) / 2;
+    final targetScreenPos = Vector2(game.size.x - 450, game.size.y - 190);
+    position = (targetScreenPos - centerOffset - game.cameraOffset) / scaleFactor;
+    scale = Vector2.all(1.0 / scaleFactor);
   }
 
   @override
@@ -32,6 +42,7 @@ class TowerShop extends PositionComponent with HasGameReference<CloroquinildoGam
     add(TowerShopItem(type: TowerType.eletrica, position: Vector2(95, 30)));
     add(TowerShopItem(type: TowerType.pedra, position: Vector2(180, 30)));
     add(TowerShopItem(type: TowerType.gelo, position: Vector2(265, 30)));
+    add(TowerShopItem(type: TowerType.fogo, position: Vector2(350, 30)));
   }
 
   @override
@@ -82,45 +93,52 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
   double get range {
     switch (type) {
       case TowerType.taokey:
-        return 130.0;
+        return BaseTower.baseRange;
       case TowerType.eletrica:
-        return 130.0;
+        return ArcTower.baseRange;
       case TowerType.pedra:
-        return 110.0;
+        return StoneTower.baseRange;
       case TowerType.gelo:
-        return 160.0;
+        return IceNovaTower.baseRange;
+      case TowerType.fogo:
+        return FireTower.baseRange;
     }
   }
 
   int get cost {
     switch (type) {
       case TowerType.taokey:
-        return 100;
+        return BaseTower.baseCost;
       case TowerType.eletrica:
-        return 150;
+        return ArcTower.baseCost;
       case TowerType.pedra:
-        return 200;
+        return StoneTower.baseCost;
       case TowerType.gelo:
-        return 250;
+        return IceNovaTower.baseCost;
+      case TowerType.fogo:
+        return FireTower.baseCost;
     }
   }
 
   String get name {
     switch (type) {
       case TowerType.taokey:
-        return 'Taokey';
+        return BaseTower.towerName;
       case TowerType.eletrica:
-        return 'Tesla';
+        return ArcTower.towerName;
       case TowerType.pedra:
-        return 'Stone';
+        return StoneTower.towerName;
       case TowerType.gelo:
-        return 'Frost';
+        return IceNovaTower.towerName;
+      case TowerType.fogo:
+        return FireTower.towerName;
     }
   }
 
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
+    game.isDraggingTower = true;
     // Cria o preview de arrasto na posição atual do ponteiro
     _preview = TowerDragPreview(
       position: event.canvasPosition,
@@ -142,6 +160,7 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
   @override
   void onDragEnd(DragEndEvent event) {
     super.onDragEnd(event);
+    game.isDraggingTower = false;
     if (_preview != null) {
       final buildPos = _preview!.position.clone();
       final isValid = _preview!.isValid;
@@ -165,6 +184,9 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
             case TowerType.gelo:
               tower = IceNovaTower(position: buildPos);
               break;
+            case TowerType.fogo:
+              tower = FireTower(position: buildPos);
+              break;
           }
           game.add(tower);
           game.showFloatingText('+Torre!', buildPos, Colors.greenAccent);
@@ -180,6 +202,7 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
   @override
   void onDragCancel(DragCancelEvent event) {
     super.onDragCancel(event);
+    game.isDraggingTower = false;
     if (_preview != null) {
       _preview!.removeFromParent();
       _preview = null;
@@ -204,8 +227,10 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       borderColor = Colors.blueAccent;
     } else if (type == TowerType.pedra) {
       borderColor = Colors.orangeAccent;
-    } else {
+    } else if (type == TowerType.gelo) {
       borderColor = Colors.lightBlueAccent;
+    } else {
+      borderColor = Colors.redAccent;
     }
 
     final borderPaint = Paint()
@@ -252,7 +277,7 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       
       final corePaint = Paint()..color = Colors.orangeAccent;
       canvas.drawCircle(Offset.zero, 5, corePaint);
-    } else {
+    } else if (type == TowerType.gelo) {
       // Miniatura da IceTower (azul claro / cristal)
       final crystalPaint = Paint()..color = Colors.lightBlueAccent;
       final crystalPath = Path()
@@ -267,6 +292,16 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       
       final bodyPaint = Paint()..color = Colors.blue.shade900.withOpacity(0.5);
       canvas.drawCircle(Offset.zero, 5, bodyPaint);
+    } else {
+      // Miniatura da FireTower (vermelha / bocal)
+      final barrelPaint = Paint()..color = Colors.grey.shade700;
+      canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-3, -4, 15, 8), const Radius.circular(2)), barrelPaint);
+      
+      final bodyPaint = Paint()..color = Colors.red.shade900;
+      canvas.drawCircle(Offset.zero, 8, bodyPaint);
+      
+      final corePaint = Paint()..color = Colors.orangeAccent;
+      canvas.drawCircle(Offset.zero, 5, corePaint);
     }
     canvas.restore();
 
@@ -288,8 +323,10 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
       priceColor = Colors.cyanAccent;
     } else if (type == TowerType.pedra) {
       priceColor = Colors.orangeAccent;
-    } else {
+    } else if (type == TowerType.gelo) {
       priceColor = Colors.lightBlueAccent;
+    } else {
+      priceColor = Colors.redAccent;
     }
 
     final pricePainter = TextPainter(
@@ -379,14 +416,22 @@ class TowerDragPreview extends PositionComponent {
 
       canvas.drawCircle(Offset.zero, 8, basePaint);
       canvas.drawCircle(Offset.zero, 8, baseBorderPaint);
-    } else {
-      // Drag preview para IceNovaTower (cristal reto)
+    } else if (type == TowerType.gelo) {
       final rodRect = Rect.fromCenter(center: const Offset(0, 0), width: 12, height: 24);
       canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(3)), basePaint);
       canvas.drawRRect(RRect.fromRectAndRadius(rodRect, const Radius.circular(3)), baseBorderPaint);
       
       canvas.drawCircle(const Offset(0, 0), 6, basePaint);
       canvas.drawCircle(const Offset(0, 0), 6, baseBorderPaint);
+    } else {
+      // Drag preview para FireTower
+      final barrelPaint = Paint()..color = color.withOpacity(0.4);
+      final barrelRect = Rect.fromLTWH(-4, -6, 22, 12);
+      canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), barrelPaint);
+      canvas.drawRRect(RRect.fromRectAndRadius(barrelRect, const Radius.circular(3)), baseBorderPaint);
+
+      canvas.drawCircle(Offset.zero, 8, basePaint);
+      canvas.drawCircle(Offset.zero, 8, baseBorderPaint);
     }
 
     canvas.restore();

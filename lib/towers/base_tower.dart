@@ -6,13 +6,17 @@ import '../projectile.dart';
 
 // BaseTower - A torre básica (anteriormente TorreTaokey)
 class BaseTower extends Tower {
+  static const String towerName = 'Taokey';
+  static const int baseCost = 50;
+  static const double baseRange = 130.0;
+
   BaseTower({required Vector2 position})
       : super(
           position: position,
-          range: 130.0,
+          range: baseRange,
           damage: 10.0,
           fireRate: 0.8,
-          cost: 100,
+          cost: baseCost,
         );
 
   @override

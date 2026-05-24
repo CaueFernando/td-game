@@ -130,7 +130,7 @@ class BurningEffect extends StatusEffect {
     tickTimer -= dt;
 
     if (tickTimer <= 0) {
-      enemy.takeDamage(dps);
+      enemy.takeDamage(dps, Colors.orangeAccent);
       tickTimer += 1.0;
     }
 

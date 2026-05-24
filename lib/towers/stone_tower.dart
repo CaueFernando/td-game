@@ -6,13 +6,17 @@ import '../projectile.dart';
 
 // StoneTower - Torre de dano físico em área (Stone Tower)
 class StoneTower extends Tower {
+  static const String towerName = 'Stone';
+  static const int baseCost = 100;
+  static const double baseRange = 110.0;
+
   StoneTower({required Vector2 position})
       : super(
           position: position,
-          range: 110.0,
+          range: baseRange,
           damage: 15.0,
           fireRate: 1.5,
-          cost: 200,
+          cost: baseCost,
         );
 
   @override
@@ -174,7 +178,7 @@ class ProjetilPedra extends Projectile {
     for (final enemy in enemies) {
       final dist = (enemy.position - position).length;
       if (dist <= splashRadius) {
-        enemy.takeDamage(damage);
+        enemy.takeDamage(damage, Colors.orange);
       }
     }
   }

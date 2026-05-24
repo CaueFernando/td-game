@@ -4,7 +4,7 @@ import 'package:flame/events.dart';
 import 'tower.dart';
 import '../main.dart';
 
-enum UpgradeType { damage, range, speed }
+enum UpgradeType { damage, range, speed, sell }
 
 class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReference<CloroquinildoGame> {
   final UpgradeType type;
@@ -28,6 +28,8 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
         return parentTower.rangeUpgradeCost;
       case UpgradeType.speed:
         return parentTower.speedUpgradeCost;
+      case UpgradeType.sell:
+        return parentTower.cost ~/ 2;
     }
   }
 
@@ -39,12 +41,22 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
         return Colors.blueAccent;
       case UpgradeType.speed:
         return Colors.greenAccent;
+      case UpgradeType.sell:
+        return Colors.orangeAccent;
     }
   }
 
   @override
   void onTapDown(TapDownEvent event) {
     super.onTapDown(event);
+
+    if (type == UpgradeType.sell) {
+      final refund = cost;
+      game.gameState.addPixcoins(refund);
+      game.showFloatingText('+$refund PX!', parentTower.position, Colors.greenAccent);
+      parentTower.removeFromParent();
+      return;
+    }
 
     final currentCost = cost;
     if (game.gameState.buy(currentCost)) {
@@ -66,6 +78,8 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
           parentTower.speedLevel++;
           parentTower.speedUpgradeCost = (parentTower.speedUpgradeCost * 1.5).toInt();
           game.showFloatingText('+Velocidade!', parentTower.position, Colors.greenAccent);
+          break;
+        case UpgradeType.sell:
           break;
       }
     } else {
@@ -147,17 +161,44 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
         canvas.drawLine(Offset(radius - 7, radius + 1), Offset(radius - 3, radius - 3), trailPaint);
         canvas.drawLine(Offset(radius - 5, radius + 4), Offset(radius - 1, radius), trailPaint);
         break;
+
+      case UpgradeType.sell:
+        // Desenha uma Lixeira
+        final lidPath = Path()
+          ..moveTo(radius - 8, radius - 6)
+          ..lineTo(radius + 8, radius - 6)
+          ..moveTo(radius - 3, radius - 6)
+          ..lineTo(radius - 3, radius - 9)
+          ..lineTo(radius + 3, radius - 9)
+          ..lineTo(radius + 3, radius - 6);
+        
+        final binPath = Path()
+          ..moveTo(radius - 6, radius - 4)
+          ..lineTo(radius - 5, radius + 8)
+          ..quadraticBezierTo(radius - 5, radius + 9, radius - 4, radius + 9)
+          ..lineTo(radius + 4, radius + 9)
+          ..quadraticBezierTo(radius + 5, radius + 9, radius + 5, radius + 8)
+          ..lineTo(radius + 6, radius - 4)
+          ..close();
+
+        canvas.drawPath(lidPath, iconPaint);
+        canvas.drawPath(binPath, iconPaint);
+        
+        // Linhas verticais dentro do cesto
+        canvas.drawLine(Offset(radius - 2, radius - 1), Offset(radius - 2, radius + 6), iconPaint);
+        canvas.drawLine(Offset(radius + 2, radius - 1), Offset(radius + 2, radius + 6), iconPaint);
+        break;
     }
 
-    // 4. Desenha o Custo abaixo do botão
+    // 4. Desenha o Custo/Reembolso abaixo do botão
     final textPainter = TextPainter(
       text: TextSpan(
-        text: '$cost PX',
-        style: const TextStyle(
-          color: Colors.amberAccent,
+        text: type == UpgradeType.sell ? '+$cost PX' : '$cost PX',
+        style: TextStyle(
+          color: type == UpgradeType.sell ? Colors.greenAccent : Colors.amberAccent,
           fontSize: 9,
           fontWeight: FontWeight.bold,
-          shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+          shadows: const [Shadow(color: Colors.black, blurRadius: 3)],
         ),
       ),
       textDirection: TextDirection.ltr,

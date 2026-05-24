@@ -55,7 +55,7 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
     }
   }
 
-  void takeDamage(double amount) {
+  void takeDamage(double amount, [Color color = const Color(0xFFE2E8F0)]) {
     if (hp <= 0) return;
 
     double damageToApply = amount;
@@ -67,6 +67,10 @@ class Enemy extends PositionComponent with HasGameReference<CloroquinildoGame> {
 
     hp -= damageToApply;
     flashTimer = 0.1; // Flash branco por 100ms
+    
+    // Spawna o popup do número de dano
+    game.showDamageNumber(damageToApply, position, color);
+
     if (hp <= 0) {
       die();
     }

@@ -14,11 +14,16 @@ import 'screens/login_screen.dart';
 import 'screens/level_select_screen.dart';
 import 'screens/game_play_screen.dart';
 
+import 'dart:math';
+
 // Classe principal do Motor do Jogo
 class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   final int level;
   final GameState gameState = GameState();
   late List<Vector2> enemyPath;
+  late Vector2 worldSize;
+  final Vector2 cameraOffset = Vector2.zero();
+  bool isDraggingTower = false;
 
   CloroquinildoGame({this.level = 1});
 
@@ -26,7 +31,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   int enemiesToSpawn = 0;
   int activeEnemiesCount = 0;
   double spawnTimer = 0.0;
-  double spawnInterval = 0.8;
+  //double spawnInterval = 0.8;
   double enemyHpMultiplier = 1.0;
   double enemySpeedMultiplier = 1.0;
   double waveTimerValue = 30.0;
@@ -35,11 +40,19 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   Future<void> onLoad() async {
     super.onLoad();
 
+    // Configura o tamanho expandido do mapa (1.8x o tamanho da tela)
+    worldSize = size * 1.8;
+
+    // Inicializa a câmera centralizada horizontal/verticalmente nas margens iniciais
+    final scaleFactor = zoomFactor;
+    final centerOffset = (size - size * scaleFactor) / 2;
+    cameraOffset.setValues(-centerOffset.x, -centerOffset.y);
+
     // Configura o número máximo de waves de acordo com a fase
     gameState.maxWaves = (level == 2) ? 7 : 5;
 
-    // Obtém o caminho dos inimigos
-    enemyPath = PathConfig.getPoints(level, size);
+    // Obtém o caminho dos inimigos baseado no worldSize
+    enemyPath = PathConfig.getPoints(level, worldSize);
 
     // Registra ouvintes para mudanças de estado cruciais
     gameState.isGameOver.addListener(_onGameOverChanged);
@@ -49,9 +62,23 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     add(TowerShop());
   }
 
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    worldSize = size * 1.8;
+    enemyPath = PathConfig.getPoints(level, worldSize);
+    _clampCameraOffset();
+  }
+
   // Helper para spawnar texto flutuante de feedback
   void showFloatingText(String message, Vector2 pos, Color color) {
     add(FloatingText(message, pos, color));
+  }
+
+  // Helper para spawnar números de dano flutuantes (Damage Popups)
+  void showDamageNumber(double amount, Vector2 pos, Color color) {
+    final text = amount % 1 == 0 ? amount.toInt().toString() : amount.toStringAsFixed(1);
+    add(DamageText(text, pos, color));
   }
 
   // Inicia a próxima wave
@@ -79,15 +106,19 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (gameState.waveInProgress.value && enemiesToSpawn > 0) {
       spawnTimer -= dt;
       if (spawnTimer <= 0) {
+        // Desloca levemente o caminho no eixo Y para cada inimigo nascer em faixas/corredores diferentes
+        final yOffset = (Random().nextDouble() - 0.5) * 16.0; // Deslocamento entre -8 e +8 pixels
+        final shiftedPath = enemyPath.map((p) => Vector2(p.x, p.y + yOffset)).toList();
+
         final goblin = GoblinSindicalista(
-          path: enemyPath,
+          path: shiftedPath,
           hpMultiplier: enemyHpMultiplier,
           speedMultiplier: enemySpeedMultiplier,
         );
         add(goblin);
         enemiesToSpawn--;
         activeEnemiesCount++;
-        spawnTimer = spawnInterval;
+        spawnTimer = 0.3 + Random().nextDouble() * 0.8;
       }
     }
 
@@ -146,6 +177,11 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     waveTimerValue = 30.0;
     gameState.waveTimer.value = 30.0;
 
+    // Reseta offset da câmera para os limites iniciais do mapa
+    final scaleFactor = zoomFactor;
+    final centerOffset = (size - size * scaleFactor) / 2;
+    cameraOffset.setValues(-centerOffset.x, -centerOffset.y);
+
     // Remove Overlays de fim de jogo
     overlays.remove('GameOver');
     overlays.remove('Victory');
@@ -153,32 +189,32 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
   @override
   void render(Canvas canvas) {
+    // Desenha o fundo tecnológico escuro do Bananil (independente da câmera)
+    canvas.drawColor(const Color(0xFF0F172A), BlendMode.src);
+
     final scaleFactor = zoomFactor;
     final centerOffset = (size - size * scaleFactor) / 2;
 
     canvas.save();
-    canvas.translate(centerOffset.x, centerOffset.y);
+    canvas.translate(centerOffset.x + cameraOffset.x, centerOffset.y + cameraOffset.y);
     canvas.scale(scaleFactor);
 
-    // Desenha o fundo tecnológico escuro do Bananil
-    canvas.drawColor(const Color(0xFF0F172A), BlendMode.src);
-
-    // Desenha uma grade cibernética sutil no fundo
+    // Desenha uma grade cibernética sutil no fundo cobrindo todo o worldSize
     final gridPaint = Paint()
       ..color = const Color(0xFF1E293B)
       ..strokeWidth = 1.0;
     const gridSpacing = 40.0;
-    for (double x = 0; x < size.x; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.y), gridPaint);
+    for (double x = 0; x < worldSize.x; x += gridSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, worldSize.y), gridPaint);
     }
-    for (double y = 0; y < size.y; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.x, y), gridPaint);
+    for (double y = 0; y < worldSize.y; y += gridSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(worldSize.x, y), gridPaint);
     }
 
     // Desenha o caminho dos inimigos
     if (enemyPath.isNotEmpty) {
       final pathPaint = Paint()
-        ..color = const Color(0xFFEF4444).withOpacity(0.2) // Área de perigo vermelha
+        ..color = const Color(0xFFEF4444).withValues(alpha: 0.2) // Área de perigo vermelha
         ..strokeWidth = 32.0
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
@@ -209,7 +245,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     
     // Brilho do Cercadinho
     final baseGlowPaint = Paint()
-      ..color = Colors.greenAccent.withOpacity(0.4)
+      ..color = Colors.greenAccent.withValues(alpha: 0.4)
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     
@@ -257,12 +293,19 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
   // Valida se o local tocado é apropriado para construir uma torre
   bool isValidTowerPosition(Vector2 pos) {
-    // 1. Limites da tela para não sobrepor o HUD
-    if (pos.x < 20 || pos.x > size.x - 20) return false;
-    if (pos.y < 60 || pos.y > size.y - 85) return false;
+    // Converte a posição local do mundo para coordenadas da tela para colisão com HUD
+    final screenPos = convertLocalToScreenCoordinate(pos);
 
-    // Evita construir em cima do painel da loja (que agora tem largura 350, pos.x = size.x - 365)
-    if (pos.x > size.x - 375 && pos.y > size.y - 200) return false;
+    // 1. Limites da tela para não sobrepor o HUD (usando coordenadas da tela)
+    if (screenPos.x < 20 || screenPos.x > size.x - 20) return false;
+    if (screenPos.y < 60 || screenPos.y > size.y - 85) return false;
+
+    // Evita construir em cima do painel da loja (que agora tem largura 435, pos.x = size.x - 450)
+    if (screenPos.x > size.x - 460 && screenPos.y > size.y - 200) return false;
+
+    // Limites lógicos do mundo expandido (usando coordenadas locais)
+    if (pos.x < 0 || pos.x > worldSize.x) return false;
+    if (pos.y < 0 || pos.y > worldSize.y) return false;
 
     // 2. Evita construir muito perto da rota (danger zone do path)
     for (int i = 0; i < enemyPath.length - 1; i++) {
@@ -310,7 +353,38 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     final localPoint = super.convertGlobalToLocalCoordinate(point);
     final scaleFactor = zoomFactor;
     final centerOffset = (canvasSize - canvasSize * scaleFactor) / 2;
-    return (localPoint - centerOffset) / scaleFactor;
+    return (localPoint - centerOffset - cameraOffset) / scaleFactor;
+  }
+
+  Vector2 convertLocalToScreenCoordinate(Vector2 localPos) {
+    final scaleFactor = zoomFactor;
+    final centerOffset = (size - size * scaleFactor) / 2;
+    return centerOffset + cameraOffset + localPos * scaleFactor;
+  }
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+    // Só move a câmera se não estiver arrastando uma torre da loja
+    if (!isDraggingTower) {
+      cameraOffset.add(event.canvasDelta / zoomFactor);
+      _clampCameraOffset();
+    }
+  }
+
+  void _clampCameraOffset() {
+    final scaleFactor = zoomFactor;
+    final centerOffset = (size - size * scaleFactor) / 2;
+
+    // Margens extras de segurança para não esconder totalmente as bordas do mundo
+    final minX = size.x - centerOffset.x - (worldSize.x * scaleFactor);
+    final maxX = -centerOffset.x;
+    
+    final minY = size.y - centerOffset.y - (worldSize.y * scaleFactor);
+    final maxY = -centerOffset.y;
+
+    cameraOffset.x = cameraOffset.x.clamp(minX, maxX);
+    cameraOffset.y = cameraOffset.y.clamp(minY, maxY);
   }
 
   @override
@@ -354,6 +428,57 @@ class FloatingText extends PositionComponent {
           fontWeight: FontWeight.bold,
           shadows: const [
             Shadow(blurRadius: 3, color: Colors.black, offset: Offset(1, 1))
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+  }
+}
+
+// Componente altamente otimizado para números de dano flutuantes (Damage Popups)
+class DamageText extends PositionComponent {
+  final String text;
+  final Color color;
+  double lifespan = 0.6; // Curta duração (600ms) para não acumular
+  final double maxLifespan = 0.6;
+  final double speed = 40.0; // Velocidade que sobe
+
+  DamageText(this.text, Vector2 pos, this.color) {
+    // Adiciona uma leve dispersão randômica no X e Y para evitar sobreposição perfeita
+    final random = Random();
+    final scatterX = (random.nextDouble() - 0.5) * 16.0;
+    final scatterY = (random.nextDouble() - 0.5) * 6.0;
+    position = pos + Vector2(scatterX, -16.0 + scatterY); // Spawna um pouco acima do centro do inimigo
+    anchor = Anchor.center;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    position.y -= speed * dt;
+    lifespan -= dt;
+    if (lifespan <= 0) {
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final progress = lifespan / maxLifespan;
+    final opacity = progress.clamp(0.0, 1.0);
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color.withValues(alpha: opacity),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          shadows: [
+            Shadow(blurRadius: 2.0, color: Colors.black.withValues(alpha: opacity * 0.8), offset: const Offset(1, 1))
           ],
         ),
       ),

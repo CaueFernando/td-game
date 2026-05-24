@@ -6,13 +6,17 @@ import '../enemy.dart';
 
 // IceNovaTower - Torre de congelamento em área radial (Ice Nova)
 class IceNovaTower extends Tower {
+  static const String towerName = 'Frost';
+  static const int baseCost = 150;
+  static const double baseRange = 160.0;
+
   IceNovaTower({required Vector2 position})
       : super(
           position: position,
-          range: 160.0, // Alcance maior para utilidade estratégica
+          range: baseRange,
           damage: 7.0,  // Dano ligeiramente inferior à BaseTower
           fireRate: 1.6,
-          cost: 250,
+          cost: baseCost,
         );
 
   @override
@@ -26,7 +30,7 @@ class IceNovaTower extends Tower {
       final dist = (enemy.position - position).length;
       if (dist <= range) {
         enemy.applyEffect(ChillEffect());
-        enemy.takeDamage(damage);
+        enemy.takeDamage(damage, Colors.lightBlueAccent);
       }
     }
   }

@@ -7,13 +7,17 @@ import '../enemy.dart';
 
 // ArcTower (Tesla Coil) - Dano instantâneo em cadeia (anteriormente TorreEletrica)
 class ArcTower extends Tower {
+  static const String towerName = 'Tesla';
+  static const int baseCost = 150;
+  static const double baseRange = 130.0;
+
   ArcTower({required Vector2 position})
       : super(
           position: position,
-          range: 130.0,
+          range: baseRange,
           damage: 8.0,
           fireRate: 1.2,
-          cost: 150,
+          cost: baseCost,
         );
 
   @override
@@ -221,7 +225,7 @@ class LightningEffect extends PositionComponent {
           final enemy = targets[i];
           if (enemy.isMounted && enemy.hp > 0) {
             enemy.applyEffect(ShockEffect());
-            enemy.takeDamage(damages[i]);
+            enemy.takeDamage(damages[i], Colors.cyanAccent);
           }
         }
       }

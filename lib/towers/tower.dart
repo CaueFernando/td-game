@@ -55,28 +55,34 @@ class Tower extends PositionComponent with TapCallbacks, HasGameReference<Cloroq
   void _showUpgradeButtons() {
     _hideUpgradeButtons(); // Safety clear
 
-    // Instancia 3 botões em arco acima da torre
+    // Instancia 4 botões em leque acima da torre
     final db = UpgradeButton(
       type: UpgradeType.damage,
       parentTower: this,
-      position: position + Vector2(-36, -44),
+      position: position + Vector2(-54, -30),
     );
     final rb = UpgradeButton(
       type: UpgradeType.range,
       parentTower: this,
-      position: position + Vector2(0, -56),
+      position: position + Vector2(-18, -50),
     );
     final sb = UpgradeButton(
       type: UpgradeType.speed,
       parentTower: this,
-      position: position + Vector2(36, -44),
+      position: position + Vector2(18, -50),
+    );
+    final sellB = UpgradeButton(
+      type: UpgradeType.sell,
+      parentTower: this,
+      position: position + Vector2(54, -30),
     );
 
     game.add(db);
     game.add(rb);
     game.add(sb);
+    game.add(sellB);
 
-    activeUpgradeButtons.addAll([db, rb, sb]);
+    activeUpgradeButtons.addAll([db, rb, sb, sellB]);
   }
 
   void _hideUpgradeButtons() {
