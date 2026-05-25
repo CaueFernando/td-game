@@ -14,6 +14,7 @@ class FireTower extends Tower {
 
   double damageTimer = 0.0;
   final double damageInterval = 0.15; // Frequência do tick de dano em cone
+  double soundTimer = 0.0;
 
   FireTower({required Vector2 position})
       : super(
@@ -34,8 +35,15 @@ class FireTower extends Tower {
         _dealConeDamage();
         damageTimer = damageInterval;
       }
+
+      soundTimer -= dt;
+      if (soundTimer <= 0) {
+        game.playSfx('burn.mp3');
+        soundTimer = 0.5; // Toca o som a cada 500ms enquanto estiver atirando
+      }
     } else {
       damageTimer = 0.0;
+      soundTimer = 0.0;
     }
   }
 

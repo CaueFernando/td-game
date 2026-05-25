@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flame_audio/flame_audio.dart';
 
 class PresentationScreen extends StatefulWidget {
   const PresentationScreen({super.key});
@@ -19,6 +20,17 @@ class _PresentationScreenState extends State<PresentationScreen> with SingleTick
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
+
+    _playMenuBgm();
+  }
+
+  Future<void> _playMenuBgm() async {
+    try {
+      await FlameAudio.bgm.initialize();
+      await FlameAudio.bgm.play('menu_bgm.mp3', volume: 0.25);
+    } catch (e) {
+      print('Aviso: Não foi possível iniciar menu_bgm.mp3: $e');
+    }
   }
 
   @override

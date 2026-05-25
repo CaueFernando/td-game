@@ -54,12 +54,14 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
       final refund = cost;
       game.gameState.addPixcoins(refund);
       game.showFloatingText('+$refund PX!', parentTower.position, Colors.greenAccent);
+      game.playSfx('sell.mp3');
       parentTower.removeFromParent();
       return;
     }
 
     final currentCost = cost;
     if (game.gameState.buy(currentCost)) {
+      game.playSfx('upgrade.mp3');
       switch (type) {
         case UpgradeType.damage:
           parentTower.damage += 4;

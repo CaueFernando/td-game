@@ -27,6 +27,7 @@ class BaseTower extends Tower {
       damage: damage,
     );
     game.add(projectile);
+    game.playSfx('shoot.mp3');
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class LevelSelectScreen extends StatefulWidget {
   const LevelSelectScreen({super.key});
@@ -9,6 +10,22 @@ class LevelSelectScreen extends StatefulWidget {
 
 class _LevelSelectScreenState extends State<LevelSelectScreen> {
   bool _isWorld1Expanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAndPlayMenuBgm();
+  }
+
+  void _checkAndPlayMenuBgm() {
+    try {
+      if (!FlameAudio.bgm.isPlaying) {
+        FlameAudio.bgm.play('menu_bgm.mp3', volume: 0.25);
+      }
+    } catch (e) {
+      print('Aviso: Não foi possível tocar menu_bgm.mp3: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -259,8 +276,9 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
 
     return InkWell(
       onTap: playable
-          ? () {
-              Navigator.pushNamed(context, '/game_play', arguments: num);
+          ? () async {
+              await Navigator.pushNamed(context, '/game_play', arguments: num);
+              _playMenuBgm();
             }
           : () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -314,6 +332,14 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
         ],
       ),
     );
+  }
+
+  void _playMenuBgm() {
+    try {
+      FlameAudio.bgm.play('menu_bgm.mp3', volume: 0.25);
+    } catch (e) {
+      print('Aviso: Não foi possível tocar menu_bgm.mp3: $e');
+    }
   }
 
   Widget _buildBossNode(int num) {

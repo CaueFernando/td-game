@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
+import 'dart:math';
 import 'tower.dart';
 import '../enemy.dart';
 import '../projectile.dart';
@@ -134,44 +135,63 @@ class StoneTower extends Tower {
   }
 }
 
-// Projétil da Torre de Pedra: Lançamento de pedra com dano em área (Splash)
+// Projétil da Torre de Pedra: Lançamento de pedra com dano em área (Splash) e movimento parabólico
 class ProjetilPedra extends Projectile {
   final double splashRadius = 70.0;
+  final Vector2 startPosition;
+  double elapsedTime = 0.0;
+  late double totalDuration;
+  late final double maxHeight;
 
   ProjetilPedra({
-    required Vector2 startPosition,
+    required this.startPosition,
     required Enemy target,
     required double damage,
   }) : super(
           startPosition: startPosition,
           target: target,
           damage: damage,
-        );
+          speed: 130.0, // Velocidade menor para dar efeito de parábola lenta (catapulta)
+        ) {
+    // Calcula a duração do voo baseada na distância inicial
+    final distance = (target.position - startPosition).length;
+    totalDuration = distance / speed;
+    if (totalDuration <= 0) totalDuration = 0.1;
+
+    // Altura máxima da parábola baseada na distância (mínimo 20, máximo 60)
+    maxHeight = (distance * 0.35).clamp(20.0, 60.0);
+  }
 
   @override
   void update(double dt) {
-    // Não chamamos super.update para interceptar o impacto e aplicar dano em área
+    // Se o alvo sumir ou morrer, removemos o projétil
     if (!target.isMounted || target.hp <= 0) {
       removeFromParent();
       return;
     }
 
-    final direction = target.position - position;
-    final distance = direction.length;
+    elapsedTime += dt;
+    final t = (elapsedTime / totalDuration).clamp(0.0, 1.0);
 
-    final step = speed * dt;
-    if (distance <= step) {
+    // Interpola a posição linear em direção ao alvo (que pode estar se movendo)
+    final currentTargetPos = target.position;
+    final basePos = startPosition + (currentTargetPos - startPosition) * t;
+
+    // Adiciona o arco da parábola (Y sobe e desce usando sin(t * pi))
+    final arcY = sin(t * pi) * maxHeight;
+    position = basePos - Vector2(0, arcY);
+
+    if (t >= 1.0) {
       // Impacto!
       _applySplashDamage();
       removeFromParent();
-    } else {
-      position += direction.normalized() * step;
     }
   }
 
   void _applySplashDamage() {
     // Cria o efeito visual de poeira e impacto
     game.add(SplashExplosionEffect(position: position.clone(), maxRadius: splashRadius));
+    game.playSfx('stone_impact.mp3');
 
     // Aplica o dano a todos os inimigos dentro do raio
     final enemies = game.children.whereType<Enemy>();

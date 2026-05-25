@@ -4,7 +4,7 @@ import 'enemy.dart';
 import 'main.dart';
 
 class Projectile extends PositionComponent with HasGameReference<CloroquinildoGame> {
-  final double speed = 300.0;
+  final double speed;
   final double damage;
   final Enemy target;
 
@@ -12,6 +12,7 @@ class Projectile extends PositionComponent with HasGameReference<CloroquinildoGa
     required Vector2 startPosition,
     required this.target,
     required this.damage,
+    this.speed = 300.0,
   }) {
     position = startPosition.clone();
     size = Vector2(10, 10);

@@ -48,6 +48,7 @@ class ArcTower extends Tower {
       targets: targets,
       damages: damages,
     ));
+    game.playSfx('zap.mp3');
   }
 
   Enemy? _findNearestEnemy(Vector2 from, Set<Enemy> exclude, double maxDistance) {

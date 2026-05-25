@@ -23,6 +23,7 @@ class IceNovaTower extends Tower {
   void shoot(Enemy target) {
     // Onda congelante radial a partir do centro da própria torre
     game.add(IceNovaEffect(position: position.clone(), maxRadius: range));
+    game.playSfx('freeze.mp3');
 
     // Aplica dano congelante em área a todos os inimigos no alcance e ativa Chill
     final enemies = game.children.whereType<Enemy>();

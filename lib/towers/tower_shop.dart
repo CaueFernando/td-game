@@ -170,6 +170,7 @@ class TowerShopItem extends PositionComponent with DragCallbacks, HasGameReferen
 
       if (isValid) {
         if (game.gameState.buy(cost)) {
+          game.playSfx('upgrade.mp3');
           final Tower tower;
           switch (type) {
             case TowerType.taokey:

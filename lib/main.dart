@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 import 'path_config.dart';
 import 'game_state.dart';
@@ -24,6 +25,8 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   late Vector2 worldSize;
   final Vector2 cameraOffset = Vector2.zero();
   bool isDraggingTower = false;
+  final Map<String, DateTime> _lastPlayedSfx = {};
+  int activeBossesCount = 0;
 
   CloroquinildoGame({this.level = 1});
 
@@ -40,6 +43,9 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   Future<void> onLoad() async {
     super.onLoad();
 
+    // Inicializa o gerenciador de BGM do FlameAudio
+    await FlameAudio.bgm.initialize();
+
     // Configura o tamanho expandido do mapa (1.8x o tamanho da tela)
     worldSize = size * 1.8;
 
@@ -49,7 +55,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     cameraOffset.setValues(-centerOffset.x, -centerOffset.y);
 
     // Configura o número máximo de waves de acordo com a fase
-    gameState.maxWaves = (level == 2) ? 7 : 5;
+    gameState.maxWaves = (level == 2) ? 16 : 8;
 
     // Obtém o caminho dos inimigos baseado no worldSize
     enemyPath = PathConfig.getPoints(level, worldSize);
@@ -60,6 +66,25 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     // Inicializa o painel da Loja de Torres
     add(TowerShop());
+
+    // Pré-carrega os arquivos de áudio de forma segura
+    _preloadAudioSafe([
+      'zap.mp3',
+      'burn.mp3',
+      'freeze.mp3',
+      'rock.mp3',
+      'stone_impact.mp3',
+      'enemy_die.mp3',
+      'shoot.mp3',
+      'upgrade.mp3',
+      'sell.mp3',
+      'click.mp3',
+      'bgm.mp3',
+      'boss_bgm.mp3',
+    ]);
+
+    // Toca a música de fundo do jogo
+    playBgm('bgm.mp3');
   }
 
   @override
@@ -81,6 +106,70 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     add(DamageText(text, pos, color));
   }
 
+  // Reproduz som com segurança contra arquivos ausentes e com controle de cooldown para não sobrecarregar a memória
+  void playSfx(String fileName) {
+    // Cooldown específico para cada tipo de som (evita sobreposição excessiva de players de áudio)
+    double cooldown = 0.15;
+    if (fileName == 'shoot.mp3') cooldown = 0.18;
+    if (fileName == 'zap.mp3') cooldown = 0.22;
+    if (fileName == 'freeze.mp3') cooldown = 0.35;
+    if (fileName == 'rock.mp3') cooldown = 0.25;
+    if (fileName == 'stone_impact.mp3') cooldown = 0.25;
+    if (fileName == 'enemy_die.mp3') cooldown = 0.15;
+    if (fileName == 'burn.mp3') cooldown = 0.40;
+    if (fileName == 'upgrade.mp3') cooldown = 0.10;
+    if (fileName == 'sell.mp3') cooldown = 0.10;
+    if (fileName == 'click.mp3') cooldown = 0.10;
+
+    final now = DateTime.now();
+    final lastPlayed = _lastPlayedSfx[fileName];
+
+    if (lastPlayed != null) {
+      final difference = now.difference(lastPlayed).inMilliseconds / 1000.0;
+      if (difference < cooldown) {
+        return; // Ignora o som se estiver dentro do período de cooldown
+      }
+    }
+
+    _lastPlayedSfx[fileName] = now;
+
+    try {
+      FlameAudio.play(fileName);
+    } catch (e) {
+      // Ignora silenciosamente para não quebrar o gameplay se o arquivo não estiver presente
+      print('Aviso: Áudio $fileName não encontrado: $e');
+    }
+  }
+
+  // Pré-carregamento seguro de áudios
+  Future<void> _preloadAudioSafe(List<String> files) async {
+    for (final file in files) {
+      try {
+        await FlameAudio.audioCache.load(file);
+      } catch (e) {
+        print('Aviso: Não foi possível pré-carregar o áudio $file: $e');
+      }
+    }
+  }
+
+  // Reproduz música de fundo em loop de forma segura
+  void playBgm(String fileName) {
+    try {
+      FlameAudio.bgm.play(fileName, volume: 0.25); // Volume mais baixo para não cobrir SFX
+    } catch (e) {
+      print('Aviso: Música de fundo $fileName não encontrada: $e');
+    }
+  }
+
+  // Interrompe a música de fundo de forma segura
+  void stopBgm() {
+    try {
+      FlameAudio.bgm.stop();
+    } catch (e) {
+      print('Aviso: Erro ao parar a música de fundo: $e');
+    }
+  }
+
   // Inicia a próxima wave
   void startNextWave() {
     if (gameState.waveInProgress.value) return;
@@ -96,6 +185,21 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     enemySpeedMultiplier = 1.0 + (currentWave - 1) * 0.15;
     spawnTimer = 0.0;
     activeEnemiesCount = 0;
+
+    // Spawna o boss se a wave for múltiplo de 8
+    if (currentWave > 0 && currentWave % 8 == 0) {
+      // Fórmula de HP Super Tanque: (30.0 * enemyHpMultiplier * 35.0 * level)
+      final bossHp = 30.0 * enemyHpMultiplier * 35.0 * level;
+      final boss = SindicalistaBoss(
+        path: enemyPath, // O Boss anda centralizado no caminho
+        hp: bossHp,
+        speedMultiplier: enemySpeedMultiplier,
+      );
+      add(boss);
+      activeEnemiesCount++;
+      activeBossesCount++;
+      playBgm('boss_bgm.mp3');
+    }
   }
 
   @override
@@ -149,6 +253,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   void _onGameOverChanged() {
     if (gameState.isGameOver.value) {
       overlays.add('GameOver');
+      stopBgm();
     } else {
       overlays.remove('GameOver');
     }
@@ -158,6 +263,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   void _onVictoryChanged() {
     if (gameState.isVictory.value) {
       overlays.add('Victory');
+      stopBgm();
     } else {
       overlays.remove('Victory');
     }
@@ -174,6 +280,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     gameState.reset();
     activeEnemiesCount = 0;
     enemiesToSpawn = 0;
+    activeBossesCount = 0;
     waveTimerValue = 30.0;
     gameState.waveTimer.value = 30.0;
 
@@ -185,6 +292,9 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     // Remove Overlays de fim de jogo
     overlays.remove('GameOver');
     overlays.remove('Victory');
+
+    // Reinicia a música de fundo
+    playBgm('bgm.mp3');
   }
 
   @override
@@ -391,6 +501,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   void onRemove() {
     gameState.isGameOver.removeListener(_onGameOverChanged);
     gameState.isVictory.removeListener(_onVictoryChanged);
+    stopBgm();
     super.onRemove();
   }
 }
