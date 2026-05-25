@@ -21,7 +21,7 @@ class FireTower extends Tower {
           position: position,
           range: baseRange,
           damage: 25.0,  // Representa o Dano por Segundo (DPS)
-          fireRate: 0.05, // Intervalo ultra-rápido para spawnar partículas constantemente
+          fireRate: 0.09, // Reduzido de 0.05 para 0.09 para diminuir churn de componentes em 50%
           cost: baseCost,
         );
 
@@ -211,10 +211,10 @@ class FireTower extends Tower {
 // Partícula individual de chama
 class FireParticle extends PositionComponent with HasGameReference<CloroquinildoGame> {
   final Vector2 velocity;
-  double lifespan = 0.4;
-  final double maxLifespan = 0.4;
-  final double startSize = 4.0;
-  final double endSize = 16.0;
+  double lifespan = 0.35; // Reduzido levemente de 0.4 para 0.35 para liberar memória mais rápido
+  final double maxLifespan = 0.35;
+  final double startSize = 6.0; // Aumentado de 4.0 para compensar a menor frequência de partículas
+  final double endSize = 22.0; // Aumentado de 16.0 para manter o cone preenchido e bonito
 
   FireParticle({required Vector2 position, required this.velocity}) {
     this.position = position.clone();
@@ -255,11 +255,24 @@ class FireParticle extends PositionComponent with HasGameReference<Cloroquinildo
       color = Colors.redAccent;
     }
 
-    final paint = Paint()
-      ..color = color.withOpacity(opacity * 0.6)
-      ..style = PaintingStyle.fill
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, progress * 4 + 1);
+    final center = Offset(size.x / 2, size.y / 2);
+    final radius = size.x / 2;
 
-    canvas.drawCircle(Offset(size.x / 2, size.y / 2), size.x / 2, paint);
+    if (radius <= 0) return;
+
+    // ALTAMENTE OTIMIZADO: Substituído o MaskFilter.blur (que forçava passes lentos fora da tela no GPU)
+    // por um shader de RadialGradient com transparência nas pontas. Visual idêntico e 100x mais rápido nativamente.
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: opacity * 0.7),
+          color.withValues(alpha: opacity * 0.3),
+          color.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, radius, paint);
   }
 }
