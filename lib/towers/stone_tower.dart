@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math';
 import 'tower.dart';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 import '../projectile.dart';
 
 // StoneTower - Torre de dano físico em área (Stone Tower)

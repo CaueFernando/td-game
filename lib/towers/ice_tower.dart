@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'tower.dart';
 import 'status_effect.dart';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 
 // IceNovaTower - Torre de congelamento em área radial (Ice Nova)
 class IceNovaTower extends Tower {

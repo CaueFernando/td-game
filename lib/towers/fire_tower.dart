@@ -3,7 +3,7 @@ import 'package:flame/components.dart';
 import 'dart:math';
 import 'tower.dart';
 import 'status_effect.dart';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 import '../main.dart';
 
 // FireTower - Torre incineradora (cospidora de fogo em cone)

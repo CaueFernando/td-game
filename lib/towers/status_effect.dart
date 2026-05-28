@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 
 enum EffectType { chill, shock, burning }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import 'enemy.dart';
+import 'enemies/enemies.dart';
 import 'main.dart';
 
 class Projectile extends PositionComponent with HasGameReference<CloroquinildoGame> {

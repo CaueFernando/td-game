@@ -7,7 +7,7 @@ import 'package:flame_audio/flame_audio.dart';
 
 import 'path_config.dart';
 import 'game_state.dart';
-import 'enemy.dart';
+import 'enemies/enemies.dart';
 import 'towers/towers.dart';
 
 import 'screens/presentation_screen.dart';
@@ -26,6 +26,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   final Vector2 cameraOffset = Vector2.zero();
   bool isDraggingTower = false;
   final Map<String, DateTime> _lastPlayedSfx = {};
+  final Map<String, AudioPool> _sfxPools = {};
   int activeBossesCount = 0;
 
   CloroquinildoGame({this.level = 1});
@@ -45,6 +46,26 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     // Inicializa o gerenciador de BGM do FlameAudio
     await FlameAudio.bgm.initialize();
+
+    // Inicializa os pools de áudio para efeitos sonoros repetitivos
+    await _initSfxPools([
+      'zap.mp3',
+      'burn.mp3',
+      'freeze.mp3',
+      'rock.mp3',
+      'stone_impact.mp3',
+      'enemy_die.mp3',
+      'shoot.mp3',
+      'upgrade.mp3',
+      'sell.mp3',
+      'click.mp3',
+    ]);
+
+    // Pré-carrega as imagens do novo Boss "Patriota do Caminhão"
+    await images.loadAll([
+      'patriot_truck_horizontal.png',
+      'patriot_truck_vertical.png',
+    ]);
 
     // Configura o tamanho expandido do mapa (1.8x o tamanho da tela)
     worldSize = size * 1.8;
@@ -67,18 +88,8 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     // Inicializa o painel da Loja de Torres
     add(TowerShop());
 
-    // Pré-carrega os arquivos de áudio de forma segura
+    // Pré-carrega os arquivos de música de fundo (BGM)
     _preloadAudioSafe([
-      'zap.mp3',
-      'burn.mp3',
-      'freeze.mp3',
-      'rock.mp3',
-      'stone_impact.mp3',
-      'enemy_die.mp3',
-      'shoot.mp3',
-      'upgrade.mp3',
-      'sell.mp3',
-      'click.mp3',
       'bgm.mp3',
       'boss_bgm.mp3',
     ]);
@@ -107,6 +118,22 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   }
 
   // Reproduz som com segurança contra arquivos ausentes e com controle de cooldown para não sobrecarregar a memória
+  // Inicializa pools de áudio para reciclagem rápida e evitar vazamento de memória
+  Future<void> _initSfxPools(List<String> files) async {
+    for (final file in files) {
+      try {
+        final pool = await FlameAudio.createPool(
+          file,
+          minPlayers: 1,
+          maxPlayers: 5, // Limita players simultâneos por som
+        );
+        _sfxPools[file] = pool;
+      } catch (e) {
+        print('Aviso: Não foi possível criar pool para o áudio $file: $e');
+      }
+    }
+  }
+
   void playSfx(String fileName) {
     // Cooldown específico para cada tipo de som (evita sobreposição excessiva de players de áudio)
     double cooldown = 0.15;
@@ -134,10 +161,15 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     _lastPlayedSfx[fileName] = now;
 
     try {
-      FlameAudio.play(fileName);
+      final pool = _sfxPools[fileName];
+      if (pool != null) {
+        pool.start();
+      } else {
+        FlameAudio.play(fileName);
+      }
     } catch (e) {
       // Ignora silenciosamente para não quebrar o gameplay se o arquivo não estiver presente
-      print('Aviso: Áudio $fileName não encontrado: $e');
+      print('Aviso: Erro ao reproduzir áudio $fileName: $e');
     }
   }
 
@@ -186,14 +218,12 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     spawnTimer = 0.0;
     activeEnemiesCount = 0;
 
-    // Spawna o boss se a wave for múltiplo de 8
-    if (currentWave > 0 && currentWave % 8 == 0) {
-      // Fórmula de HP Super Tanque: (30.0 * enemyHpMultiplier * 35.0 * level)
-      final bossHp = 30.0 * enemyHpMultiplier * 35.0 * level;
-      final boss = SindicalistaBoss(
-        path: enemyPath, // O Boss anda centralizado no caminho
-        hp: bossHp,
-        speedMultiplier: enemySpeedMultiplier,
+    // TESTE TEMPORÁRIO DO BOSS NA WAVE 1
+    if (currentWave == 1) {
+      final boss = PatriotaCaminhaoBoss(
+        path: enemyPath,
+        hp: 350.0, // HP baixo para testar a derrota rapidamente
+        speedMultiplier: 1.0,
       );
       add(boss);
       activeEnemiesCount++;

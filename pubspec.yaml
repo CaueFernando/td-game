@@ -61,6 +61,8 @@ flutter:
 
   assets:
     - assets/images/cloroquinildo_avatar.png
+    - assets/images/patriot_truck_horizontal.png
+    - assets/images/patriot_truck_vertical.png
     - assets/audio/
 
   # An image asset can refer to one or more resolution-specific "variants", see

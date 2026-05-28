@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'tower.dart';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 import '../projectile.dart';
 
 // BaseTower - A torre básica (anteriormente TorreTaokey)

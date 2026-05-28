@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'dart:math';
-import '../enemy.dart';
+import '../enemies/enemies.dart';
 import 'upgrade_button.dart';
 import '../main.dart';
 
