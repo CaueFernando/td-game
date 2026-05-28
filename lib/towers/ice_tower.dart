@@ -10,6 +10,9 @@ class IceNovaTower extends Tower {
   static const int baseCost = 150;
   static const double baseRange = 160.0;
 
+  @override
+  String get name => towerName;
+
   IceNovaTower({required Vector2 position})
       : super(
           position: position,

@@ -84,6 +84,9 @@ class UpgradeButton extends PositionComponent with TapCallbacks, HasGameReferenc
         case UpgradeType.sell:
           break;
       }
+      // Força a atualização da HUD re-atribuindo a torre selecionada
+      game.selectedTower.value = null;
+      game.selectedTower.value = parentTower;
     } else {
       game.showFloatingText('Sem Pixcoins!', position, Colors.redAccent);
     }

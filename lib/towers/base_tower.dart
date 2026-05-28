@@ -10,6 +10,9 @@ class BaseTower extends Tower {
   static const int baseCost = 50;
   static const double baseRange = 130.0;
 
+  @override
+  String get name => towerName;
+
   BaseTower({required Vector2 position})
       : super(
           position: position,

@@ -28,6 +28,10 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
   final Map<String, DateTime> _lastPlayedSfx = {};
   final Map<String, AudioPool> _sfxPools = {};
   int activeBossesCount = 0;
+  final ValueNotifier<Tower?> selectedTower = ValueNotifier<Tower?>(null);
+  Sprite? grassTileSprite;
+  Sprite? dirtTileSprite;
+  final Set<String> level3PathTiles = {};
 
   CloroquinildoGame({this.level = 1});
 
@@ -70,8 +74,25 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     final centerOffset = (size - size * scaleFactor) / 2;
     cameraOffset.setValues(-centerOffset.x, -centerOffset.y);
 
+    // Carrega a imagem do mapa para faturar os tiles da fase 3 se necessário
+    await images.load('tile_world_sprite.png');
+    final tileWorldImage = images.fromCache('tile_world_sprite.png');
+    grassTileSprite = Sprite(tileWorldImage, srcPosition: Vector2(0, 0), srcSize: Vector2(512, 512));
+    dirtTileSprite = Sprite(tileWorldImage, srcPosition: Vector2(1024, 0), srcSize: Vector2(512, 512));
+
+    // Inicializa a grade de caminho para a fase 3
+    if (level == 3) {
+      _generateLevel3PathTiles();
+    }
+
     // Configura o número máximo de waves de acordo com a fase
-    gameState.maxWaves = (level == 2) ? 16 : 8;
+    if (level == 3) {
+      gameState.maxWaves = 12; // 12 waves para o nível 3
+    } else if (level == 2) {
+      gameState.maxWaves = 16;
+    } else {
+      gameState.maxWaves = 8;
+    }
 
     // Obtém o caminho dos inimigos baseado no worldSize
     enemyPath = PathConfig.getPoints(level, worldSize);
@@ -306,6 +327,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     // Reseta estado
     gameState.reset();
+    selectedTower.value = null;
     activeEnemiesCount = 0;
     enemiesToSpawn = 0;
     activeBossesCount = 0;
@@ -337,16 +359,30 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     canvas.translate(centerOffset.x + cameraOffset.x, centerOffset.y + cameraOffset.y);
     canvas.scale(scaleFactor);
 
-    // Desenha uma grade cibernética sutil no fundo cobrindo todo o worldSize
-    final gridPaint = Paint()
-      ..color = const Color(0xFF1E293B)
-      ..strokeWidth = 1.0;
-    const gridSpacing = 40.0;
-    for (double x = 0; x < worldSize.x; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, worldSize.y), gridPaint);
-    }
-    for (double y = 0; y < worldSize.y; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(worldSize.x, y), gridPaint);
+    if (level == 3 && grassTileSprite != null && dirtTileSprite != null) {
+      final tileWidth = worldSize.x / 24;
+      final tileHeight = worldSize.y / 14;
+      for (int x = 0; x < 24; x++) {
+        for (int y = 0; y < 14; y++) {
+          final pos = Vector2(x * tileWidth, y * tileHeight);
+          final size = Vector2(tileWidth + 0.5, tileHeight + 0.5); // Sobreposição sutil para evitar emendas
+          final isPath = level3PathTiles.contains('$x,$y');
+          final sprite = isPath ? dirtTileSprite! : grassTileSprite!;
+          sprite.render(canvas, position: pos, size: size);
+        }
+      }
+    } else {
+      // Desenha uma grade cibernética sutil no fundo cobrindo todo o worldSize
+      final gridPaint = Paint()
+        ..color = const Color(0xFF1E293B)
+        ..strokeWidth = 1.0;
+      const gridSpacing = 40.0;
+      for (double x = 0; x < worldSize.x; x += gridSpacing) {
+        canvas.drawLine(Offset(x, 0), Offset(x, worldSize.y), gridPaint);
+      }
+      for (double y = 0; y < worldSize.y; y += gridSpacing) {
+        canvas.drawLine(Offset(0, y), Offset(worldSize.x, y), gridPaint);
+      }
     }
 
     // Desenha o caminho dos inimigos
@@ -446,11 +482,19 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (pos.y < 0 || pos.y > worldSize.y) return false;
 
     // 2. Evita construir muito perto da rota (danger zone do path)
-    for (int i = 0; i < enemyPath.length - 1; i++) {
-      final a = enemyPath[i];
-      final b = enemyPath[i + 1];
-      if (_distanceToSegment(pos, a, b) < 35.0) {
+    if (level == 3) {
+      final col = (pos.x / worldSize.x * 24).floor().clamp(0, 23);
+      final row = (pos.y / worldSize.y * 14).floor().clamp(0, 13);
+      if (level3PathTiles.contains('$col,$row')) {
         return false;
+      }
+    } else {
+      for (int i = 0; i < enemyPath.length - 1; i++) {
+        final a = enemyPath[i];
+        final b = enemyPath[i + 1];
+        if (_distanceToSegment(pos, a, b) < 35.0) {
+          return false;
+        }
       }
     }
 
@@ -484,7 +528,7 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     return (p - closestPoint).length;
   }
 
-  double get zoomFactor => (level == 2) ? 0.82 : 0.90;
+  double get zoomFactor => (level >= 2) ? 0.82 : 0.90;
 
   @override
   Vector2 convertGlobalToLocalCoordinate(Vector2 point) {
@@ -523,6 +567,34 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     cameraOffset.x = cameraOffset.x.clamp(minX, maxX);
     cameraOffset.y = cameraOffset.y.clamp(minY, maxY);
+  }
+
+  void _generateLevel3PathTiles() {
+    level3PathTiles.clear();
+    final checkpoints = [
+      const Point(0, 4),
+      const Point(6, 4),
+      const Point(6, 10),
+      const Point(16, 10),
+      const Point(16, 3),
+      const Point(23, 3),
+    ];
+
+    for (int i = 0; i < checkpoints.length - 1; i++) {
+      final p1 = checkpoints[i];
+      final p2 = checkpoints[i + 1];
+
+      final startX = min(p1.x, p2.x);
+      final endX = max(p1.x, p2.x);
+      final startY = min(p1.y, p2.y);
+      final endY = max(p1.y, p2.y);
+
+      for (int x = startX; x <= endX; x++) {
+        for (int y = startY; y <= endY; y++) {
+          level3PathTiles.add('$x,$y');
+        }
+      }
+    }
   }
 
   @override

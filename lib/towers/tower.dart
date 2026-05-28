@@ -11,6 +11,7 @@ class Tower extends PositionComponent with TapCallbacks, HasGameReference<Cloroq
   double damage;
   double fireRate;
   final int cost;
+  String get name => 'Torre';
   
   double cooldownTimer = 0.0;
   Enemy? currentTarget;
@@ -35,8 +36,12 @@ class Tower extends PositionComponent with TapCallbacks, HasGameReference<Cloroq
     _showRange = val;
     if (_showRange) {
       _showUpgradeButtons();
+      game.selectedTower.value = this;
     } else {
       _hideUpgradeButtons();
+      if (game.selectedTower.value == this) {
+        game.selectedTower.value = null;
+      }
     }
   }
 
@@ -97,6 +102,9 @@ class Tower extends PositionComponent with TapCallbacks, HasGameReference<Cloroq
   @override
   void onRemove() {
     _hideUpgradeButtons();
+    if (game.selectedTower.value == this) {
+      game.selectedTower.value = null;
+    }
     super.onRemove();
   }
 

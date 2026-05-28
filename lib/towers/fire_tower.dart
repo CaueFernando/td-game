@@ -12,6 +12,9 @@ class FireTower extends Tower {
   static const int baseCost = 150;
   static const double baseRange = 120.0;
 
+  @override
+  String get name => towerName;
+
   double damageTimer = 0.0;
   final double damageInterval = 0.15; // Frequência do tick de dano em cone
   double soundTimer = 0.0;

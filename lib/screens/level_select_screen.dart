@@ -254,7 +254,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                 children: [
                   _buildLevelNode(1, stars: 3, isUnlocked: true),
                   _buildLevelNode(2, stars: 0, isUnlocked: true),
-                  _buildLevelNode(3, stars: 3, isUnlocked: false),
+                  _buildLevelNode(3, stars: 0, isUnlocked: true),
                   _buildLevelNode(4, stars: 2, isUnlocked: false),
                   _buildLevelNode(5, stars: 1, isUnlocked: false),
                   _buildLevelNode(6, stars: 0, isUnlocked: false),
@@ -271,8 +271,8 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
   }
 
   Widget _buildLevelNode(int num, {required int stars, required bool isUnlocked}) {
-    // Níveis 1 e 2 estão disponíveis e abrem a partida
-    final playable = num == 1 || num == 2;
+    // Níveis 1, 2 e 3 estão disponíveis e abrem a partida
+    final playable = num == 1 || num == 2 || num == 3;
 
     return InkWell(
       onTap: playable

@@ -9,7 +9,10 @@ import '../projectile.dart';
 class StoneTower extends Tower {
   static const String towerName = 'Stone';
   static const int baseCost = 100;
-  static const double baseRange = 110.0;
+  static const double baseRange = 300.0;
+
+  @override
+  String get name => towerName;
 
   StoneTower({required Vector2 position})
       : super(

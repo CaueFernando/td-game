@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'main.dart';
+import 'towers/towers.dart';
 
 class GameHud extends StatelessWidget {
   final CloroquinildoGame game;
@@ -184,6 +185,110 @@ class GameHud extends StatelessWidget {
               },
             ),
           ),
+
+          // Painel dinâmico de Atributos da Torre Selecionada (abaixo do HP)
+          Positioned(
+            top: 75,
+            right: 0,
+            child: ValueListenableBuilder<Tower?>(
+              valueListenable: game.selectedTower,
+              builder: (context, selectedTower, _) {
+                if (selectedTower == null) return const SizedBox.shrink();
+
+                // Determina a cor temática baseado no tipo de torre
+                Color themeColor = Colors.cyanAccent;
+                if (selectedTower.name == 'Tesla') {
+                  themeColor = Colors.blueAccent;
+                } else if (selectedTower.name == 'Stone') {
+                  themeColor = Colors.orangeAccent;
+                } else if (selectedTower.name == 'Frost') {
+                  themeColor = Colors.lightBlueAccent;
+                } else if (selectedTower.name == 'Pyro') {
+                  themeColor = Colors.redAccent;
+                }
+
+                return Container(
+                  width: 220,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B).withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.5), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeColor.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Cabeçalho: Nome da Torre + Botão de fechar
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.tune_rounded, color: themeColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                selectedTower.name.toUpperCase(),
+                                style: TextStyle(
+                                  color: themeColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              selectedTower.showRange = false;
+                            },
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white54,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(color: Colors.white24, height: 16),
+
+                      // Atributos atuais e níveis
+                      _buildAttributeRow(
+                        icon: Icons.flash_on_rounded,
+                        label: 'Dano',
+                        value: selectedTower.damage.toStringAsFixed(0),
+                        level: selectedTower.damageLevel,
+                        color: Colors.redAccent,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildAttributeRow(
+                        icon: Icons.track_changes_rounded,
+                        label: 'Alcance',
+                        value: selectedTower.range.toStringAsFixed(0),
+                        level: selectedTower.rangeLevel,
+                        color: Colors.blueAccent,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildAttributeRow(
+                        icon: Icons.speed_rounded,
+                        label: 'Ataque',
+                        value: '${(1.0 / selectedTower.fireRate).toStringAsFixed(1)}/s',
+                        level: selectedTower.speedLevel,
+                        color: Colors.greenAccent,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -226,6 +331,56 @@ class GameHud extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAttributeRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required int level,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: color.withOpacity(0.4), width: 1.0),
+          ),
+          child: Text(
+            'Lvl $level',
+            style: TextStyle(
+              color: color,
+              fontSize: 8,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

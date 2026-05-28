@@ -11,6 +11,9 @@ class ArcTower extends Tower {
   static const int baseCost = 150;
   static const double baseRange = 130.0;
 
+  @override
+  String get name => towerName;
+
   ArcTower({required Vector2 position})
       : super(
           position: position,
