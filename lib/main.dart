@@ -61,11 +61,6 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
       'click.mp3',
     ]);
 
-    // Pré-carrega as imagens do novo Boss "Patriota do Caminhão"
-    await images.loadAll([
-      'patriot_truck_horizontal.png',
-      'patriot_truck_vertical.png',
-    ]);
 
     // Configura o tamanho expandido do mapa (1.8x o tamanho da tela)
     worldSize = size * 1.8;
@@ -218,11 +213,14 @@ class CloroquinildoGame extends FlameGame with TapCallbacks, DragCallbacks {
     spawnTimer = 0.0;
     activeEnemiesCount = 0;
 
-    // TESTE TEMPORÁRIO DO BOSS NA WAVE 1
-    if (currentWave == 1) {
-      final boss = PatriotaCaminhaoBoss(
+    // Spawn do Boss Sindicalista no final do nível (waves múltiplas de 8) ou na wave 1 para teste temporário
+    if (currentWave == 1 || currentWave % 8 == 0) {
+      final double bossHp = (currentWave == 1) 
+          ? 250.0 // HP menor para teste rápido na wave 1
+          : (currentWave == 8) ? 800.0 : 1600.0;
+      final boss = SindicalistaBoss(
         path: enemyPath,
-        hp: 350.0, // HP baixo para testar a derrota rapidamente
+        hp: bossHp,
         speedMultiplier: 1.0,
       );
       add(boss);
